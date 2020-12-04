@@ -19,24 +19,75 @@ function App() {
   let net;
 
   const start = async () => {
-    await loadPix(); //  Loop and detect hands
-    setInterval(() => {
-      detect(net);
-    }, 100);
+    console.log(webcamRef.current);
+    net = await bodyPix.load();
+    console.log("BodyPix model loaded.");     //  Loop and detect hands
+
+    // let timer = requestAnimationFrame(detect);
+
+
+
+    // setInterval(async () => {
+    //   maskAndDraw()
+    // }, 100);
+
+    requestAnimationFrame(maskAndDraw);
+
   }
 
-  const loadPix = async () => {
-    net = await bodyPix.load();
-    console.log("BodyPix model loaded.");   
-  };
 
-  const detect = async () => {
+  const maskAndDraw = async() => {
+    const mask = await getMask();
+    if(mask) {
+      draw(mask)
+    }
+    requestAnimationFrame(maskAndDraw);
+
+  }
+
+  const getMask = async () => {
+    if (
+      typeof webcamRef.current !== "undefined" &&
+      webcamRef.current !== null &&
+      webcamRef.current.video.readyState === 4
+    ) {
+      // Get Video Properties
+      const video = webcamRef.current.video;
+      const videoWidth = webcamRef.current.video.videoWidth;
+      const videoHeight = webcamRef.current.video.videoHeight;
+
+      // Set video width
+      webcamRef.current.video.width = videoWidth;
+      webcamRef.current.video.height = videoHeight;
+
+      // Set canvas height and width
+      canvasRef.current.width = videoWidth;
+      canvasRef.current.height = videoHeight;
+
+      // COLORED MASK
+      const person = await net.segmentPersonParts(video);
+      return bodyPix.toColoredPartMask(person);
+
+      // DARK MASK
+      // const segmentation = await net.segmentPerson(video, {
+      //   flipHorizontal: false,
+      //   internalResolution: 'medium',
+      //   segmentationThreshold: 0.7
+      // });
+      // return bodyPix.toMask(segmentation);
+    }
+    else return null;
+  }
+
+  const draw = async (mask) => {
     // Check data is available
     if (
       typeof webcamRef.current !== "undefined" &&
       webcamRef.current !== null &&
       webcamRef.current.video.readyState === 4
     ) {
+      console.log("[DETECT]");
+
       // Get Video Properties
       const video = webcamRef.current.video;
       const videoWidth = webcamRef.current.video.videoWidth;
@@ -57,41 +108,46 @@ function App() {
       // *   - net.segmentMultiPerson
       // *   - net.segmentMultiPersonParts
       // const person = await net.segmentPerson(video);
-    
-      
-      const person = await net.segmentPersonParts(video);
-      const coloredPartImage1 = bodyPix.toColoredPartMask(person);
 
-      const segmentation = await net.segmentPerson(video, {
-        flipHorizontal: false,
-          internalResolution: 'medium',
-          segmentationThreshold: 0.7
-        });
-      const coloredPartImage2 = bodyPix.toMask(segmentation);
-      
+      //TO DO BEFORE
+
+      // const person = await net.segmentPersonParts(video);
+      // const coloredPartImage1 = bodyPix.toColoredPartMask(person);
+
+      // const segmentation = await net.segmentPerson(video, {
+      //   flipHorizontal: false,
+      //     internalResolution: 'medium',
+      //     segmentationThreshold: 0.7
+      //   });
+      // const coloredPartImage2 = bodyPix.toMask(segmentation);
+
+      //TO DO BEFORE
+
+
       const opacity = 0.7;
       const flipHorizontal = false;
       const maskBlurAmount = 0;
       const canvas = canvasRef.current;
 
+      console.log("[MASK]");
       bodyPix.drawMask(
         canvas,
         video,
-        coloredPartImage1,
+        mask,
         opacity,
         maskBlurAmount,
         flipHorizontal
       );
 
 
-      
+
 
       // BLUR EXAMPLE
 
       // const backgroundBlurAmount = 3;
       // const edgeBlurAmount = 3;
 
-      
+
 
       // bodyPix.drawBokehEffect(
       //   canvas,
@@ -103,9 +159,12 @@ function App() {
       // );
 
     }
-  };
 
-  start();
+    // requestAnimationFrame(detect)
+
+  };
+  start()
+  // useEffect(() => { start() });
 
   return (
     <div className="App">
