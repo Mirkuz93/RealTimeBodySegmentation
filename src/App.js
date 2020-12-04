@@ -6,7 +6,7 @@
 // 6. Detect function
 // 7. Draw using drawMask
 
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 // import logo from './logo.svg';
 import * as tf from "@tensorflow/tfjs";
 import * as bodyPix from "@tensorflow-models/body-pix";
@@ -16,17 +16,21 @@ import "./App.css";
 function App() {
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
+  let net;
 
-  const runBodysegment = async () => {
-    const net = await bodyPix.load();
-    console.log("BodyPix model loaded.");
-    //  Loop and detect hands
+  const start = async () => {
+    await loadPix(); //  Loop and detect hands
     setInterval(() => {
       detect(net);
     }, 100);
+  }
+
+  const loadPix = async () => {
+    net = await bodyPix.load();
+    console.log("BodyPix model loaded.");   
   };
 
-  const detect = async (net) => {
+  const detect = async () => {
     // Check data is available
     if (
       typeof webcamRef.current !== "undefined" &&
@@ -53,11 +57,18 @@ function App() {
       // *   - net.segmentMultiPerson
       // *   - net.segmentMultiPersonParts
       // const person = await net.segmentPerson(video);
+    
+      
       const person = await net.segmentPersonParts(video);
-      console.log(person);
+      const coloredPartImage1 = bodyPix.toColoredPartMask(person);
 
-      // const coloredPartImage = bodyPix.toMask(person);
-      const coloredPartImage = bodyPix.toColoredPartMask(person);
+      const segmentation = await net.segmentPerson(video, {
+        flipHorizontal: false,
+          internalResolution: 'medium',
+          segmentationThreshold: 0.7
+        });
+      const coloredPartImage2 = bodyPix.toMask(segmentation);
+      
       const opacity = 0.7;
       const flipHorizontal = false;
       const maskBlurAmount = 0;
@@ -66,15 +77,35 @@ function App() {
       bodyPix.drawMask(
         canvas,
         video,
-        coloredPartImage,
+        coloredPartImage1,
         opacity,
         maskBlurAmount,
         flipHorizontal
       );
+
+
+      
+
+      // BLUR EXAMPLE
+
+      // const backgroundBlurAmount = 3;
+      // const edgeBlurAmount = 3;
+
+      
+
+      // bodyPix.drawBokehEffect(
+      //   canvas,
+      //   video,
+      //   segmentation,
+      //   backgroundBlurAmount,
+      //   edgeBlurAmount,
+      //   flipHorizontal
+      // );
+
     }
   };
 
-  runBodysegment();
+  start();
 
   return (
     <div className="App">
